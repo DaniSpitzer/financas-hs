@@ -5,56 +5,72 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Finanças da Avó</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    
     <style>
-        body { font-family: sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; justify-content: center; }
-        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
         h2 { text-align: center; color: #333; }
-        label { display: block; margin-top: 10px; font-weight: bold; }
+        label { display: block; margin-top: 10px; font-weight: bold; color: #555; }
         input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
-        button { background-color: #28a745; color: white; border: none; font-weight: bold; margin-top: 20px; cursor: pointer; }
-        .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d9534f; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
+        
+        button { background-color: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 15px; cursor: pointer; }
+        .btn-pdf { background-color: #555; margin-top: 10px; }
+        
+        .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d93025; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        
+        /* Área que será capturada para o PDF */
+        #area-report { padding: 10px; background: white; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <h2>Gastos da Avó</h2>
-    
-    <label>Data</label>
-    <input type="date" id="data">
-    
-    <label>Valor (€)</label>
-    <input type="number" id="valor" step="0.01" placeholder="0.00">
-    
-    <label>Categoria</label>
-    <select id="categoria">
-        <option value="Alimentação">Alimentação</option>
-        <option value="Saúde/Farmácia">Saúde/Farmácia</option>
-        <option value="Casa/Contas">Casa/Contas</option>
-        <option value="Outros">Outros</option>
-    </select>
-    
-    <label>Descrição</label>
-    <input type="text" id="descricao" placeholder="O que comprou?">
-    
-    <button id="btnAdicionar" onclick="adicionarDespesa()">Adicionar Despesa</button>
+    <div id="area-registo">
+        <h2>Gastos da Avó</h2>
+        
+        <label>Data</label>
+        <input type="date" id="data">
+        
+        <label>Valor (€)</label>
+        <input type="number" id="valor" step="0.01" placeholder="0.00">
+        
+        <label>Categoria</label>
+        <select id="categoria">
+            <option value="Alimentação">Alimentação</option>
+            <option value="Saúde/Farmácia">Saúde/Farmácia</option>
+            <option value="Casa/Contas">Casa/Contas</option>
+            <option value="Outros">Outros</option>
+        </select>
+        
+        <label>Descrição</label>
+        <input type="text" id="descricao" placeholder="O que comprou?">
+        
+        <button id="btnAdicionar" onclick="adicionarDespesa()">Adicionar Despesa</button>
+    </div>
 
-    <div class="total" id="valorTotal">Total: 0.00€</div>
-    
-    <canvas id="meuGrafico"></canvas>
+    <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
-    <table id="tabelaDespesas">
-        <thead>
-            <tr>
-                <th>Data</th>
-                <th>Cat.</th>
-                <th>Valor</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
+    <div id="area-report">
+        <h3 style="text-align: center;">Relatório Mensal</h3>
+        <div class="total" id="valorTotal">Total: 0.00€</div>
+        <canvas id="meuGrafico" style="max-width: 300px; margin: auto;"></canvas>
+
+        <table id="tabelaDespesas">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Cat.</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <button class="btn-pdf" onclick="gerarPDF()">📥 Baixar Relatório PDF</button>
 </div>
 
 <script>
@@ -77,22 +93,18 @@
         const categoria = document.getElementById('categoria').value;
         const descricao = document.getElementById('descricao').value;
 
-        if (!data || isNaN(valor)) return alert("Preencha os campos!");
+        if (!data || isNaN(valor)) return alert("Preencha data e valor!");
 
         btn.innerText = "A guardar...";
         btn.disabled = true;
 
-        const novaDespesa = { data, valor, categoria, descricao };
-
         try {
-            // Usamos 'no-cors' para evitar bloqueios do Google, mas ele guarda os dados!
             await fetch(APP_URL, {
                 method: 'POST',
                 mode: 'no-cors',
-                body: JSON.stringify(novaDespesa)
+                body: JSON.stringify({ data, valor, categoria, descricao })
             });
 
-            // Esperar um pouco para o Google processar e recarregar
             setTimeout(() => {
                 btn.innerText = "Adicionar Despesa";
                 btn.disabled = false;
@@ -100,7 +112,7 @@
                 document.getElementById('descricao').value = '';
                 carregarDados();
             }, 1500);
-        } catch (e) { alert("Erro ao guardar!"); btn.disabled = false; }
+        } catch (e) { alert("Erro!"); btn.disabled = false; }
     }
 
     function atualizarInterface() {
@@ -139,6 +151,21 @@
                 }]
             }
         });
+    }
+
+    // NOVA FUNÇÃO: GERAR PDF
+    function gerarPDF() {
+        const element = document.getElementById('area-report');
+        const opt = {
+            margin:       10,
+            filename:     'Relatorio_Gastos_Avo.pdf',
+            image:        { type: 'jpeg', quality: 0.98 },
+            html2canvas:  { scale: 2 },
+            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        };
+        
+        // Executa a conversão
+        html2pdf().set(opt).from(element).save();
     }
 
     window.onload = carregarDados;
