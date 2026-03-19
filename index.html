@@ -66,24 +66,26 @@
 
     <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
-  <div id="area-report" style="background-color: white; min-height: 500px; padding: 20px;">
-    <h3 style="text-align: center; color: black;">Relatório de Março</h3>
-    <div class="total" id="valorTotal" style="text-align: center; color: red; font-size: 24px; margin-bottom: 20px;">Total: 0.00R$</div>
+  <div id="area-report" style="background: white; padding: 15px; border-radius: 10px;">
+    <h3 id="titulo-report" style="text-align: center;">Relatório Mensal</h3>
     
-    <div style="width: 100%; max-width: 300px; margin: 0 auto 30px auto;">
-        <canvas id="meuGrafico"></canvas>
+    <div style="margin-bottom: 20px; text-align: center;">
+        <label for="filtroMes">Ver outro mês:</label>
+        <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
     </div>
 
-    <table id="tabelaDespesas" style="width: 100%; border-collapse: collapse; color: black; margin-top: 20px;">
+    <div class="total" id="valorTotal">Total: 0.00€</div>
+    <canvas id="meuGrafico"></canvas>
+    
+    <table id="tabelaDespesas">
         <thead>
-            <tr style="background-color: #f2f2f2;">
-                <th style="border: 1px solid black; padding: 8px;">Data</th>
-                <th style="border: 1px solid black; padding: 8px;">Cat.</th>
-                <th style="border: 1px solid black; padding: 8px;">Valor</th>
+            <tr>
+                <th>Data</th>
+                <th>Cat.</th>
+                <th>Valor</th>
             </tr>
         </thead>
-        <tbody>
-            </tbody>
+        <tbody></tbody>
     </table>
 </div>
 
@@ -101,18 +103,30 @@ async function carregarDados() {
         const response = await fetch(APP_URL);
         const todosDados = await response.json();
         
-        const hoje = new Date();
-        const mesAtual = hoje.getMonth(); // 0 = Janeiro, 1 = Fevereiro...
-        const anoAtual = hoje.getFullYear();
-
-        // FILTRO: Só deixa passar o que for do mês e ano atual
-        despesas = todosDados.filter(d => {
-            const dataDespesa = new Date(d.data);
-            return dataDespesa.getMonth() === mesAtual && dataDespesa.getFullYear() === anoAtual;
-        });
-
-        atualizarInterface();
+        // Guardamos todos os dados numa variável global para filtrar sem ir ao Google toda hora
+        window.todasAsDespesas = todosDados; 
+        
+        carregarDadosFiltrados(); // Chama o filtro pela primeira vez
     } catch (e) { console.log("Erro ao carregar:", e); }
+}
+
+function carregarDadosFiltrados() {
+    const selector = document.getElementById('filtroMes').value; // Formato "YYYY-MM"
+    if (!selector) return;
+
+    const [anoAlvo, mesAlvo] = selector.split("-").map(Number);
+    
+    // Filtrar os dados que já temos guardados
+    despesas = window.todasAsDespesas.filter(d => {
+        const dataD = new Date(d.data);
+        return dataD.getFullYear() === anoAlvo && (dataD.getMonth() + 1) === mesAlvo;
+    });
+
+    // Atualizar o título do Relatório
+    const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    document.getElementById('titulo-report').innerText = "Relatório de " + meses[mesAlvo - 1];
+
+    atualizarInterface();
 }
 
 async function adicionarDespesa() {
@@ -225,7 +239,12 @@ function gerarPDF() {
     });
 }
 
-window.onload = carregarDados;
+window.onload = () => {
+    const hoje = new Date();
+    const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
+    document.getElementById('filtroMes').value = mesFormatado;
+    carregarDados();
+};
 </script>
 
 </body>
