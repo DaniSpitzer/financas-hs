@@ -44,7 +44,7 @@
         <label>Data</label>
         <input type="date" id="data">
         
-        <label>Valor (€)</label>
+        <label>Valor (R$)</label>
         <input type="number" id="valor" step="0.01" placeholder="0.00">
         
         <label>Categoria</label>
@@ -68,7 +68,7 @@
 
   <div id="area-report" style="background-color: white; min-height: 500px; padding: 20px;">
     <h3 style="text-align: center; color: black;">Relatório de Março</h3>
-    <div class="total" id="valorTotal" style="text-align: center; color: red; font-size: 24px; margin-bottom: 20px;">Total: 0.00€</div>
+    <div class="total" id="valorTotal" style="text-align: center; color: red; font-size: 24px; margin-bottom: 20px;">Total: 0.00R$</div>
     
     <div style="width: 100%; max-width: 300px; margin: 0 auto 30px auto;">
         <canvas id="meuGrafico"></canvas>
@@ -161,7 +161,7 @@ function atualizarInterface() {
         let row = `<tr>
             <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
             <td>${d.categoria}</td>
-            <td>${v.toFixed(2)}€</td>
+            <td>${v.toFixed(2)}R$</td>
         </tr>`;
         corpoTabela.innerHTML += row;
     });
@@ -171,7 +171,7 @@ function atualizarInterface() {
     const mesNome = nomesMeses[new Date().getMonth()];
     document.querySelector('#area-report h3').innerText = `Relatório de ${mesNome}`;
 
-    document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}€`;
+    document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}R$`;
     atualizarGrafico(resumoCategorias);
 }
 
