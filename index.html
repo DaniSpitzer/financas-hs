@@ -131,12 +131,12 @@ function carregarDadosFiltrados() {
 
 async function adicionarDespesa() {
     const btn = document.getElementById('btnAdicionar');
-    const dataInput = document.getElementById('data').value;
+    const data = document.getElementById('data').value;
     const valor = parseFloat(document.getElementById('valor').value);
     const categoria = document.getElementById('categoria').value;
     const descricao = document.getElementById('descricao').value;
 
-    if (!dataInput || isNaN(valor)) return alert("Preencha data e valor!");
+    if (!data || isNaN(valor)) return alert("Preencha data e valor!");
 
     btn.innerText = "Carregando...";
     btn.disabled = true;
@@ -145,7 +145,7 @@ async function adicionarDespesa() {
         await fetch(APP_URL, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify({ dataInput, valor, categoria, descricao })
+            body: JSON.stringify({ data, valor, categoria, descricao })
         });
 
         setTimeout(() => {
