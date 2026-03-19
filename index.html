@@ -1,11 +1,77 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Finanças da Avó</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body { font-family: sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; justify-content: center; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; }
+        h2 { text-align: center; color: #333; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
+        button { background-color: #28a745; color: white; border: none; font-weight: bold; margin-top: 20px; cursor: pointer; }
+        .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d9534f; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { border-bottom: 1px solid #ddd; padding: 10px; text-align: left; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h2>Gastos da Avó</h2>
+    
+    <label>Data</label>
+    <input type="date" id="data">
+    
+    <label>Valor (€)</label>
+    <input type="number" id="valor" step="0.01" placeholder="0.00">
+    
+    <label>Categoria</label>
+    <select id="categoria">
+        <option value="Alimentação">Alimentação</option>
+        <option value="Saúde/Farmácia">Saúde/Farmácia</option>
+        <option value="Casa/Contas">Casa/Contas</option>
+        <option value="Outros">Outros</option>
+    </select>
+    
+    <label>Descrição</label>
+    <input type="text" id="descricao" placeholder="O que comprou?">
+    
+    <button id="btnAdicionar" onclick="adicionarDespesa()">Adicionar Despesa</button>
+
+    <div class="total" id="valorTotal">Total: 0.00€</div>
+    
+    <canvas id="meuGrafico"></canvas>
+
+    <table id="tabelaDespesas">
+        <thead>
+            <tr>
+                <th>Data</th>
+                <th>Cat.</th>
+                <th>Valor</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
+</div>
+
 <script>
-    const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec"
+    const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec";
     let despesas = [];
     let meuGrafico;
 
-    // Função para enviar para o Google Sheets
+    async function carregarDados() {
+        try {
+            const response = await fetch(APP_URL);
+            despesas = await response.json();
+            atualizarInterface();
+        } catch (e) { console.log("Erro ao carregar:", e); }
+    }
+
     async function adicionarDespesa() {
-        const btn = document.querySelector('button');
+        const btn = document.getElementById('btnAdicionar');
         const data = document.getElementById('data').value;
         const valor = parseFloat(document.getElementById('valor').value);
         const categoria = document.getElementById('categoria').value;
@@ -18,25 +84,23 @@
 
         const novaDespesa = { data, valor, categoria, descricao };
 
-        // Envia para o Google Sheets
-        await fetch(APP_URL, {
-            method: 'POST',
-            body: JSON.stringify(novaDespesa)
-        });
+        try {
+            // Usamos 'no-cors' para evitar bloqueios do Google, mas ele guarda os dados!
+            await fetch(APP_URL, {
+                method: 'POST',
+                mode: 'no-cors',
+                body: JSON.stringify(novaDespesa)
+            });
 
-        btn.innerText = "Adicionar Despesa";
-        btn.disabled = false;
-        
-        carregarDados(); // Recarrega a lista
-        document.getElementById('valor').value = '';
-        document.getElementById('descricao').value = '';
-    }
-
-    // Função para ler do Google Sheets
-    async function carregarDados() {
-        const response = await fetch(APP_URL);
-        despesas = await response.json();
-        atualizarInterface();
+            // Esperar um pouco para o Google processar e recarregar
+            setTimeout(() => {
+                btn.innerText = "Adicionar Despesa";
+                btn.disabled = false;
+                document.getElementById('valor').value = '';
+                document.getElementById('descricao').value = '';
+                carregarDados();
+            }, 1500);
+        } catch (e) { alert("Erro ao guardar!"); btn.disabled = false; }
     }
 
     function atualizarInterface() {
@@ -58,11 +122,27 @@
             corpoTabela.innerHTML += row;
         });
 
-        document.getElementById('valorTotal').innerText = `Total do Mês: ${total.toFixed(2)}€`;
+        document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}€`;
         atualizarGrafico(resumoCategorias);
     }
 
-    // ... (Mantenha a função atualizarGrafico do código anterior)
-    
+    function atualizarGrafico(dados) {
+        const ctx = document.getElementById('meuGrafico').getContext('2d');
+        if (meuGrafico) meuGrafico.destroy();
+        meuGrafico = new Chart(ctx, {
+            type: 'doughnut',
+            data: {
+                labels: Object.keys(dados),
+                datasets: [{
+                    data: Object.values(dados),
+                    backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0']
+                }]
+            }
+        });
+    }
+
     window.onload = carregarDados;
 </script>
+
+</body>
+</html>
