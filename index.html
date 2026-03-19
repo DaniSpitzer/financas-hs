@@ -22,7 +22,17 @@
         th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
         
         /* Área que será capturada para o PDF */
-        #area-report { padding: 10px; background: white; }
+        #area-report { 
+        background-color: white !important; 
+        color: black !important;
+        padding: 20px !important;
+        }
+        #area-report table {
+        display: table !important; 
+        width: 100% !important;
+        border-collapse: collapse !important;
+        color: #000 !important; 
+        }
     </style>
 </head>
 <body>
@@ -182,15 +192,33 @@ function atualizarGrafico(dados) {
 }
 
 function gerarPDF() {
+    // 1. Selecionamos o elemento do relatório
     const element = document.getElementById('area-report');
+    
+    // 2. Opções otimizadas para garantir que o conteúdo dinâmico (tabela/gráfico) apareça
     const opt = {
-        margin: 10,
-        filename: `Relatorio_Despesas_${new Date().getMonth()+1}.pdf`,
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        margin:       15,
+        filename:     `Relatorio_Gastos_Avo_Mes_${new Date().getMonth()+1}.pdf`,
+        image:        { type: 'jpeg', quality: 0.98 },
+        html2canvas:  { 
+            scale: 2, 
+            useCORS: true, 
+            allowTaint: true,
+            letterRendering: true
+        },
+        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
     };
-    html2pdf().set(opt).from(element).save();
+
+    const btn = document.querySelector('.btn-pdf');
+    btn.innerText = "A processar...";
+
+    // 3. O segredo: usamos o método .from().set().save() com uma promessa
+    html2pdf().set(opt).from(element).save().then(() => {
+        btn.innerText = "📥 Baixar Relatório PDF";
+    }).catch(err => {
+        console.error("Erro no PDF:", err);
+        alert("Erro ao gerar PDF. Tente novamente.");
+    });
 }
 
 window.onload = carregarDados;
