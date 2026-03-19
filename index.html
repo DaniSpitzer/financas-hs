@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças da Avó</title>
+    <title>Finanças Hedy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     
@@ -29,7 +29,7 @@
 
 <div class="container">
     <div id="area-registo">
-        <h2>Gastos da Avó</h2>
+        <h2>Despesas da Hedy</h2>
         
         <label>Data</label>
         <input type="date" id="data">
@@ -42,6 +42,9 @@
             <option value="Alimentação">Alimentação</option>
             <option value="Saúde/Farmácia">Saúde/Farmácia</option>
             <option value="Casa/Contas">Casa/Contas</option>
+            <option value="Casa/Contas">Cuidadora</option>
+            <option value="Casa/Contas">Serviços da casa/Limpeza/Jardim/Manutenção</option>
+            <option value="Casa/Contas">Saques</option>
             <option value="Outros">Outros</option>
         </select>
         
@@ -74,101 +77,123 @@
 </div>
 
 <script>
-    const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec";
-    let despesas = [];
-    let meuGrafico;
+const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec";
+let despesas = [];
+let meuGrafico;
 
-    async function carregarDados() {
-        try {
-            const response = await fetch(APP_URL);
-            despesas = await response.json();
-            atualizarInterface();
-        } catch (e) { console.log("Erro ao carregar:", e); }
-    }
-
-    async function adicionarDespesa() {
-        const btn = document.getElementById('btnAdicionar');
-        const data = document.getElementById('data').value;
-        const valor = parseFloat(document.getElementById('valor').value);
-        const categoria = document.getElementById('categoria').value;
-        const descricao = document.getElementById('descricao').value;
-
-        if (!data || isNaN(valor)) return alert("Preencha data e valor!");
-
-        btn.innerText = "A guardar...";
-        btn.disabled = true;
-
-        try {
-            await fetch(APP_URL, {
-                method: 'POST',
-                mode: 'no-cors',
-                body: JSON.stringify({ data, valor, categoria, descricao })
-            });
-
-            setTimeout(() => {
-                btn.innerText = "Adicionar Despesa";
-                btn.disabled = false;
-                document.getElementById('valor').value = '';
-                document.getElementById('descricao').value = '';
-                carregarDados();
-            }, 1500);
-        } catch (e) { alert("Erro!"); btn.disabled = false; }
-    }
-
-    function atualizarInterface() {
-        const corpoTabela = document.querySelector('#tabelaDespesas tbody');
-        corpoTabela.innerHTML = '';
-        let total = 0;
-        let resumoCategorias = {};
-
-        despesas.forEach(d => {
-            let v = parseFloat(d.valor);
-            total += v;
-            resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
-
-            let row = `<tr>
-                <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
-                <td>${d.categoria}</td>
-                <td>${v.toFixed(2)}€</td>
-            </tr>`;
-            corpoTabela.innerHTML += row;
-        });
-
-        document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}€`;
-        atualizarGrafico(resumoCategorias);
-    }
-
-    function atualizarGrafico(dados) {
-        const ctx = document.getElementById('meuGrafico').getContext('2d');
-        if (meuGrafico) meuGrafico.destroy();
-        meuGrafico = new Chart(ctx, {
-            type: 'doughnut',
-            data: {
-                labels: Object.keys(dados),
-                datasets: [{
-                    data: Object.values(dados),
-                    backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0']
-                }]
-            }
-        });
-    }
-
-    // NOVA FUNÇÃO: GERAR PDF
-    function gerarPDF() {
-        const element = document.getElementById('area-report');
-        const opt = {
-            margin:       10,
-            filename:     'Relatorio_Gastos_Avo.pdf',
-            image:        { type: 'jpeg', quality: 0.98 },
-            html2canvas:  { scale: 2 },
-            jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        };
+// Função para carregar e FILTRAR os dados
+async function carregarDados() {
+    try {
+        const response = await fetch(APP_URL);
+        const todosDados = await response.json();
         
-        // Executa a conversão
-        html2pdf().set(opt).from(element).save();
-    }
+        const hoje = new Date();
+        const mesAtual = hoje.getMonth(); // 0 = Janeiro, 1 = Fevereiro...
+        const anoAtual = hoje.getFullYear();
 
-    window.onload = carregarDados;
+        // FILTRO: Só deixa passar o que for do mês e ano atual
+        despesas = todosDados.filter(d => {
+            const dataDespesa = new Date(d.data);
+            return dataDespesa.getMonth() === mesAtual && dataDespesa.getFullYear() === anoAtual;
+        });
+
+        atualizarInterface();
+    } catch (e) { console.log("Erro ao carregar:", e); }
+}
+
+async function adicionarDespesa() {
+    const btn = document.getElementById('btnAdicionar');
+    const data = document.getElementById('data').value;
+    const valor = parseFloat(document.getElementById('valor').value);
+    const categoria = document.getElementById('categoria').value;
+    const descricao = document.getElementById('descricao').value;
+
+    if (!data || isNaN(valor)) return alert("Preencha data e valor!");
+
+    btn.innerText = "Carregando...";
+    btn.disabled = true;
+
+    try {
+        await fetch(APP_URL, {
+            method: 'POST',
+            mode: 'no-cors',
+            body: JSON.stringify({ data, valor, categoria, descricao })
+        });
+
+        setTimeout(() => {
+            btn.innerText = "Adicionar Despesa";
+            btn.disabled = false;
+            document.getElementById('valor').value = '';
+            document.getElementById('descricao').value = '';
+            carregarDados(); // Recarrega já com o filtro aplicado
+        }, 1500);
+    } catch (e) { alert("Erro!"); btn.disabled = false; }
+}
+
+function atualizarInterface() {
+    const corpoTabela = document.querySelector('#tabelaDespesas tbody');
+    corpoTabela.innerHTML = '';
+    let total = 0;
+    let resumoCategorias = {};
+
+    // Ordenar para mostrar a mais recente no topo da tabela
+    const listaOrdenada = [...despesas].sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    listaOrdenada.forEach(d => {
+        let v = parseFloat(d.valor);
+        total += v;
+        resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
+
+        let row = `<tr>
+            <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
+            <td>${d.categoria}</td>
+            <td>${v.toFixed(2)}€</td>
+        </tr>`;
+        corpoTabela.innerHTML += row;
+    });
+
+    // Atualiza o título do relatório para mostrar o mês atual
+    const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
+    const mesNome = nomesMeses[new Date().getMonth()];
+    document.querySelector('#area-report h3').innerText = `Relatório de ${mesNome}`;
+
+    document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}€`;
+    atualizarGrafico(resumoCategorias);
+}
+
+function atualizarGrafico(dados) {
+    const ctx = document.getElementById('meuGrafico').getContext('2d');
+    if (meuGrafico) meuGrafico.destroy();
+    meuGrafico = new Chart(ctx, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(dados),
+            datasets: [{
+                data: Object.values(dados),
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']
+            }]
+        },
+        options: {
+            plugins: {
+                legend: { position: 'bottom' }
+            }
+        }
+    });
+}
+
+function gerarPDF() {
+    const element = document.getElementById('area-report');
+    const opt = {
+        margin: 10,
+        filename: `Relatorio_Despesas_${new Date().getMonth()+1}.pdf`,
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+    html2pdf().set(opt).from(element).save();
+}
+
+window.onload = carregarDados;
 </script>
 
 </body>
