@@ -175,7 +175,7 @@ function atualizarInterface() {
         let row = `<tr>
             <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
             <td>${d.categoria}</td>
-            <td>${v.toFixed(2)}R$</td>
+            <td>R$ ${v.toFixed(2)}</td>
         </tr>`;
         corpoTabela.innerHTML += row;
     });
@@ -185,7 +185,7 @@ function atualizarInterface() {
     const mesNome = nomesMeses[new Date().getMonth()];
     document.querySelector('#area-report h3').innerText = `Relatório de ${mesNome}`;
 
-    document.getElementById('valorTotal').innerText = `Total: ${total.toFixed(2)}R$`;
+    document.getElementById('valorTotal').innerText = `Total: R$ ${total.toFixed(2)}`;
     atualizarGrafico(resumoCategorias);
 }
 
