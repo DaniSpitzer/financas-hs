@@ -1,0 +1,68 @@
+<script>
+    const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec"
+    let despesas = [];
+    let meuGrafico;
+
+    // Função para enviar para o Google Sheets
+    async function adicionarDespesa() {
+        const btn = document.querySelector('button');
+        const data = document.getElementById('data').value;
+        const valor = parseFloat(document.getElementById('valor').value);
+        const categoria = document.getElementById('categoria').value;
+        const descricao = document.getElementById('descricao').value;
+
+        if (!data || isNaN(valor)) return alert("Preencha os campos!");
+
+        btn.innerText = "A guardar...";
+        btn.disabled = true;
+
+        const novaDespesa = { data, valor, categoria, descricao };
+
+        // Envia para o Google Sheets
+        await fetch(APP_URL, {
+            method: 'POST',
+            body: JSON.stringify(novaDespesa)
+        });
+
+        btn.innerText = "Adicionar Despesa";
+        btn.disabled = false;
+        
+        carregarDados(); // Recarrega a lista
+        document.getElementById('valor').value = '';
+        document.getElementById('descricao').value = '';
+    }
+
+    // Função para ler do Google Sheets
+    async function carregarDados() {
+        const response = await fetch(APP_URL);
+        despesas = await response.json();
+        atualizarInterface();
+    }
+
+    function atualizarInterface() {
+        const corpoTabela = document.querySelector('#tabelaDespesas tbody');
+        corpoTabela.innerHTML = '';
+        let total = 0;
+        let resumoCategorias = {};
+
+        despesas.forEach(d => {
+            let v = parseFloat(d.valor);
+            total += v;
+            resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
+
+            let row = `<tr>
+                <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
+                <td>${d.categoria}</td>
+                <td>${v.toFixed(2)}€</td>
+            </tr>`;
+            corpoTabela.innerHTML += row;
+        });
+
+        document.getElementById('valorTotal').innerText = `Total do Mês: ${total.toFixed(2)}€`;
+        atualizarGrafico(resumoCategorias);
+    }
+
+    // ... (Mantenha a função atualizarGrafico do código anterior)
+    
+    window.onload = carregarDados;
+</script>
