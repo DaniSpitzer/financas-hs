@@ -18,21 +18,13 @@
         .btn-pdf { background-color: #555; margin-top: 10px; }
         
         .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d93025; }
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 14px; }
-        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
         
-        /* Área que será capturada para o PDF */
-        #area-report { 
-        background-color: white !important; 
-        color: black !important;
-        padding: 20px !important;
-        }
-        #area-report table {
-        display: table !important; 
-        width: 100% !important;
-        border-collapse: collapse !important;
-        color: #000 !important; 
-        }
+        /* Estilos da Tabela */
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; color: black; }
+        th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
+        th { background-color: #f8f9fa; }
+
+        #area-report { background-color: white !important; padding: 15px !important; border-radius: 10px; }
     </style>
 </head>
 <body>
@@ -52,9 +44,9 @@
             <option value="Alimentação">Alimentação</option>
             <option value="Saúde/Farmácia">Saúde/Farmácia</option>
             <option value="Casa/Contas">Casa/Contas</option>
-            <option value="Casa/Contas">Cuidadora</option>
-            <option value="Casa/Contas">Serviços da casa/Limpeza/Jardim/Manutenção</option>
-            <option value="Casa/Contas">Saques</option>
+            <option value="Cuidadora">Cuidadora</option>
+            <option value="Limpeza/Manutenção">Serviços da casa/Limpeza/Jardim/Manutenção</option>
+            <option value="Saques">Saques</option>
             <option value="Outros">Outros</option>
         </select>
         
@@ -66,67 +58,62 @@
 
     <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
-  <div id="area-report" style="background: white; padding: 15px; border-radius: 10px;">
-    <h3 id="titulo-report" style="text-align: center;">Relatório Mensal</h3>
-    
-    <div style="margin-bottom: 20px; text-align: center;">
-        <label for="filtroMes">Ver outro mês:</label>
-        <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
-    </div>
+    <div id="area-report">
+        <h3 id="titulo-report" style="text-align: center;">Relatório Mensal</h3>
+        
+        <div style="margin-bottom: 20px; text-align: center;" class="no-pdf">
+            <label for="filtroMes">Ver outro mês:</label>
+            <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
+        </div>
 
-    <div class="total" id="valorTotal">Total: 0.00€</div>
-    <canvas id="meuGrafico"></canvas>
-    
-    <table id="tabelaDespesas">
-        <thead>
-            <tr>
-                <th>Data</th>
-                <th>Cat.</th>
-                <th>Valor</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-</div>
+        <div class="total" id="valorTotal">Total: R$ 0.00</div>
+        <canvas id="meuGrafico" style="max-height: 250px;"></canvas>
+        
+        <table id="tabelaDespesas">
+            <thead>
+                <tr>
+                    <th>Data</th>
+                    <th>Cat.</th>
+                    <th>Descrição</th>
+                    <th>Valor</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
 
     <button class="btn-pdf" onclick="gerarPDF()">📥 Baixar Relatório PDF</button>
 </div>
 
 <script>
 const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec";
-let despesas = [];
+let todasAsDespesas = [];
 let meuGrafico;
 
-// Função para carregar e FILTRAR os dados
 async function carregarDados() {
     try {
         const response = await fetch(APP_URL);
-        const todosDados = await response.json();
-        
-        // Guardamos todos os dados numa variável global para filtrar sem ir ao Google toda hora
-        window.todasAsDespesas = todosDados; 
-        
-        carregarDadosFiltrados(); // Chama o filtro pela primeira vez
+        todasAsDespesas = await response.json();
+        carregarDadosFiltrados();
     } catch (e) { console.log("Erro ao carregar:", e); }
 }
 
 function carregarDadosFiltrados() {
-    const selector = document.getElementById('filtroMes').value; // Formato "YYYY-MM"
+    const selector = document.getElementById('filtroMes').value; 
     if (!selector) return;
 
-    const [anoAlvo, mesAlvo] = selector.split("-").map(Number);
+    const [anoAlvo, mesAlvo] = selector.split("-");
     
-    // Filtrar os dados que já temos guardados
-    despesas = window.todasAsDespesas.filter(d => {
-        const dataD = new Date(d.data);
-        return dataD.getFullYear() === anoAlvo && (dataD.getMonth() + 1) === mesAlvo;
+    const despesasFiltradas = todasAsDespesas.filter(d => {
+        const dataPura = d.data.toString().split('T')[0]; 
+        const [anoD, mesD] = dataPura.split("-");
+        return anoD === anoAlvo && mesD === mesAlvo;
     });
 
-    // Atualizar o título do Relatório
     const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    document.getElementById('titulo-report').innerText = "Relatório de " + meses[mesAlvo - 1];
+    document.getElementById('titulo-report').innerText = "Relatório de " + meses[parseInt(mesAlvo) - 1];
 
-    atualizarInterface();
+    atualizarInterface(despesasFiltradas);
 }
 
 async function adicionarDespesa() {
@@ -153,37 +140,37 @@ async function adicionarDespesa() {
             btn.disabled = false;
             document.getElementById('valor').value = '';
             document.getElementById('descricao').value = '';
-            carregarDados(); // Recarrega já com o filtro aplicado
+            carregarDados();
         }, 1500);
     } catch (e) { alert("Erro!"); btn.disabled = false; }
 }
 
-function atualizarInterface() {
+function atualizarInterface(dados) {
     const corpoTabela = document.querySelector('#tabelaDespesas tbody');
     corpoTabela.innerHTML = '';
     let total = 0;
     let resumoCategorias = {};
 
-    // Ordenar para mostrar a mais recente no topo da tabela
-    const listaOrdenada = [...despesas].sort((a, b) => new Date(b.data) - new Date(a.data));
+    // Ordenar: mais recente primeiro
+    const listaOrdenada = [...dados].sort((a, b) => new Date(b.data) - new Date(a.data));
 
     listaOrdenada.forEach(d => {
         let v = parseFloat(d.valor);
         total += v;
         resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
 
+        // Formatação de data blindada contra fuso horário
+        const p = d.data.toString().split('T')[0].split('-');
+        const dataFormatada = `${p[2]}/${p[1]}`;
+
         let row = `<tr>
-            <td>${new Date(d.data).toLocaleDateString('pt-PT')}</td>
-            <td>${d.categoria}</td>
-            <td>R$ ${v.toFixed(2)}</td>
+            <td style="border: 1px solid #eee; padding: 8px;">${dataFormatada}</td>
+            <td style="border: 1px solid #eee; padding: 8px;">${d.categoria}</td>
+            <td style="border: 1px solid #eee; padding: 8px;">${d.descricao || '-'}</td>
+            <td style="border: 1px solid #eee; padding: 8px;">R$ ${v.toFixed(2)}</td>
         </tr>`;
         corpoTabela.innerHTML += row;
     });
-
-    // Atualiza o título do relatório para mostrar o mês atual
-    const nomesMeses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    const mesNome = nomesMeses[new Date().getMonth()];
-    document.querySelector('#area-report h3').innerText = `Relatório de ${mesNome}`;
 
     document.getElementById('valorTotal').innerText = `Total: R$ ${total.toFixed(2)}`;
     atualizarGrafico(resumoCategorias);
@@ -198,54 +185,36 @@ function atualizarGrafico(dados) {
             labels: Object.keys(dados),
             datasets: [{
                 data: Object.values(dados),
-                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff']
+                backgroundColor: ['#ff6384', '#36a2eb', '#ffce56', '#4bc0c0', '#9966ff', '#ff9f40']
             }]
         },
         options: {
-            plugins: {
-                legend: { position: 'bottom' }
-            }
+            animation: false, // Desligado para o PDF capturar bem
+            plugins: { legend: { position: 'bottom' } }
         }
     });
 }
 
 function gerarPDF() {
-    // 1. Selecionamos o elemento do relatório
     const element = document.getElementById('area-report');
-    
-    // 2. Opções otimizadas para garantir que o conteúdo dinâmico (tabela/gráfico) apareça
-    const opt = {
-        margin:       15,
-        filename:     `Relatorio_Despesas_Mes_${new Date().getMonth()+1}.pdf`,
-        image:        { type: 'jpeg', quality: 0.98 },
-        html2canvas:  { 
-            scale: 2, 
-            useCORS: true, 
-            allowTaint: true,
-            letterRendering: true
-        },
-        jsPDF:        { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
-
     const btn = document.querySelector('.btn-pdf');
     btn.innerText = "A processar...";
 
-    // 3. O segredo: usamos o método .from().set().save() com uma promessa
-    html2pdf().set(opt).from(element).save().then(() => {
-        btn.innerText = "📥 Baixar Relatório PDF";
-    }).catch(err => {
-        console.error("Erro no PDF:", err);
-        alert("Erro ao gerar PDF. Tente novamente.");
-    });
+    const opt = {
+        margin: [10, 5, 10, 5],
+        filename: 'Relatorio_Financas_Hedy.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+    };
+
+    setTimeout(() => {
+        html2pdf().set(opt).from(element).save().then(() => {
+            btn.innerText = "📥 Baixar Relatório PDF";
+        });
+    }, 500);
 }
 
 window.onload = () => {
     const hoje = new Date();
-    const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
-    document.getElementById('filtroMes').value = mesFormatado;
-    carregarDados();
-};
-</script>
-
-</body>
-</html>
+    const mesFormatado = hoje.getFullYear() + "-" +
