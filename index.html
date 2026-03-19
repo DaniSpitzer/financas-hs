@@ -193,20 +193,27 @@ function atualizarGrafico(dados) {
 }
 
 function gerarPDF() {
-    const element = document.getElementById('area-report');
     const btn = document.querySelector('.btn-pdf');
     btn.innerText = "A gerar PDF...";
 
-    const opt = {
-        margin: [10, 5, 10, 5],
-        filename: 'Relatorio_Financas_Hedy.pdf',
-        image: { type: 'jpeg', quality: 0.98 },
-        html2canvas: { scale: 2, useCORS: true, backgroundColor: '#ffffff' },
-        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-    };
+    const canvas = document.getElementById("meuGrafico");
+    const img = canvas.toDataURL("image/png");
+
+    const imagemGrafico = document.createElement("img");
+    imagemGrafico.src = img;
+    imagemGrafico.style.width = "100%";
+
+    canvas.parentNode.replaceChild(imagemGrafico, canvas);
+
+    const element = document.getElementById('area-report');
 
     setTimeout(() => {
-        html2pdf().set(opt).from(element).save().then(() => {
+        html2pdf().from(element).set({
+            margin: 10,
+            filename: 'Relatorio_Financas_Hedy.pdf',
+            html2canvas: { scale: 2 },
+            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+        }).save().then(() => {
             btn.innerText = "📥 Baixar Relatório PDF";
         });
     }, 500);
