@@ -23,7 +23,21 @@
         th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
         th { background-color: #f8f9fa; }
 
-        #area-report { background-color: white !important; padding: 15px !important; border-radius: 10px; }
+        #area-report {page-break-inside: avoid;}
+        canvas {page-break-inside: avoid;}
+        #pagina1 {
+        page-break-after: always;
+        text-align: center;
+        }
+
+        #pagina2 {
+        page-break-inside: avoid;
+        }
+
+        #meuGrafico {
+        max-height: 260px;
+        margin-top: 20px;
+        }
     </style>
 </head>
 <body>
@@ -58,21 +72,26 @@
     <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
 
     <div id="area-report">
-        <h3 id="titulo-report" style="text-align: center;">Relatório Mensal</h3>
-        
-        <div style="margin-bottom: 20px; text-align: center;" class="no-pdf">
-            <label for="filtroMes">Ver outro mês:</label>
-            <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
-        </div>
+
+    <!-- PAGINA 1 -->
+    <div id="pagina1">
+        <h2 style="text-align:center;">Relatório de Despesas</h2>
+        <h3 id="titulo-report" style="text-align:center;"></h3>
 
         <div class="total" id="valorTotal">Total: R$ 0.00</div>
-        <canvas id="meuGrafico" style="max-height: 250px;"></canvas>
-        
+
+        <canvas id="meuGrafico"></canvas>
+    </div>
+
+    <!-- PAGINA 2 -->
+    <div id="pagina2">
+        <h3 style="margin-top:40px;">Lista de Despesas</h3>
+
         <table id="tabelaDespesas">
             <thead>
                 <tr>
                     <th>Data</th>
-                    <th>Cat.</th>
+                    <th>Categoria</th>
                     <th>Descrição</th>
                     <th>Valor</th>
                 </tr>
@@ -80,6 +99,8 @@
             <tbody></tbody>
         </table>
     </div>
+
+</div>
 
     <button class="btn-pdf" onclick="gerarPDF()">📥 Baixar Relatório PDF</button>
 </div>
@@ -193,32 +214,33 @@ function atualizarGrafico(dados) {
 }
 
 function gerarPDF() {
+
     const btn = document.querySelector('.btn-pdf');
     btn.innerText = "A gerar PDF...";
 
-    const canvas = document.getElementById("meuGrafico");
-    const img = canvas.toDataURL("image/png");
-
-    const imagemGrafico = document.createElement("img");
-    imagemGrafico.src = img;
-    imagemGrafico.style.width = "100%";
-
-    canvas.parentNode.replaceChild(imagemGrafico, canvas);
-
     const element = document.getElementById('area-report');
 
+    const opt = {
+        margin: 10,
+        filename: 'Relatorio_Financas_Hedy.pdf',
+        pagebreak: { mode: ['css', 'legacy'] },
+        html2canvas: {
+            scale: 2,
+            useCORS: true
+        },
+        jsPDF: {
+            unit: 'mm',
+            format: 'a4',
+            orientation: 'portrait'
+        }
+    };
+
     setTimeout(() => {
-        html2pdf().from(element).set({
-            margin: 10,
-            filename: 'Relatorio_Financas_Hedy.pdf',
-            html2canvas: { scale: 2 },
-            jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
-        }).save().then(() => {
+        html2pdf().set(opt).from(element).save().then(() => {
             btn.innerText = "📥 Baixar Relatório PDF";
         });
-    }, 3000);
+    }, 1000);
 }
-
 window.onload = () => {
     const hoje = new Date();
     const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
