@@ -70,6 +70,10 @@
     </div>
 
     <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
+    <div style="margin-bottom: 20px; text-align: center;">
+        <label for="filtroMes">Ver outro mês:</label>
+        <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
+    </div>
 
     <div id="area-report">
 
@@ -244,7 +248,8 @@ function gerarPDF() {
 window.onload = () => {
     const hoje = new Date();
     const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
-    document.getElementById('filtroMes').value = mesFormatado;
+    const filtro = document.getElementById('filtroMes');
+    if (filtro) filtro.value = mesFormatado;
     carregarDados();
 };
 </script>
