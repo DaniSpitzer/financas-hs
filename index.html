@@ -83,6 +83,16 @@
 
         <canvas id="meuGrafico"></canvas>
     </div>
+    <h3 style="margin-top:25px;">Total por categoria</h3>
+    <table id="tabelaCategorias">
+        <thead>
+            <tr>
+                <th>Categoria</th>
+                <th>Total</th>
+            </tr>
+        </thead>
+        <tbody></tbody>
+    </table>
 
     <!-- PAGINA 2 -->
     <div id="pagina2">
@@ -189,6 +199,22 @@ function atualizarInterface(dados) {
             <td style="border: 1px solid #eee; padding: 8px;">R$ ${v.toFixed(2)}</td>
         </tr>`;
         corpoTabela.innerHTML += row;
+    });
+
+    const corpoCategorias = document.querySelector('#tabelaCategorias tbody');
+    corpoCategorias.innerHTML = '';
+
+    Object.keys(resumoCategorias).forEach(cat => {
+    const valor = resumoCategorias[cat];
+
+    const row = `
+        <tr>
+            <td>${cat}</td>
+            <td>R$ ${valor.toFixed(2)}</td>
+        </tr>
+    `;
+
+    corpoCategorias.innerHTML += row;
     });
 
     document.getElementById('valorTotal').innerText = `Total: R$ ${total.toFixed(2)}`;
