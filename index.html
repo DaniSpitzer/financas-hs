@@ -19,7 +19,6 @@
         
         .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d93025; }
         
-        /* Estilos da Tabela */
         table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; color: black; }
         th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
         th { background-color: #f8f9fa; }
@@ -151,7 +150,6 @@ function atualizarInterface(dados) {
     let total = 0;
     let resumoCategorias = {};
 
-    // Ordenar: mais recente primeiro
     const listaOrdenada = [...dados].sort((a, b) => new Date(b.data) - new Date(a.data));
 
     listaOrdenada.forEach(d => {
@@ -159,9 +157,8 @@ function atualizarInterface(dados) {
         total += v;
         resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
 
-        // Formatação de data blindada contra fuso horário
         const p = d.data.toString().split('T')[0].split('-');
-        const dataFormatada = `${p[2]}/${p[1]}`;
+        const dataFormatada = p[2] + "/" + p[1];
 
         let row = `<tr>
             <td style="border: 1px solid #eee; padding: 8px;">${dataFormatada}</td>
@@ -189,7 +186,7 @@ function atualizarGrafico(dados) {
             }]
         },
         options: {
-            animation: false, // Desligado para o PDF capturar bem
+            animation: false,
             plugins: { legend: { position: 'bottom' } }
         }
     });
@@ -198,7 +195,7 @@ function atualizarGrafico(dados) {
 function gerarPDF() {
     const element = document.getElementById('area-report');
     const btn = document.querySelector('.btn-pdf');
-    btn.innerText = "A processar...";
+    btn.innerText = "A gerar PDF...";
 
     const opt = {
         margin: [10, 5, 10, 5],
@@ -217,4 +214,11 @@ function gerarPDF() {
 
 window.onload = () => {
     const hoje = new Date();
-    const mesFormatado = hoje.getFullYear() + "-" +
+    const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
+    document.getElementById('filtroMes').value = mesFormatado;
+    carregarDados();
+};
+</script>
+
+</body>
+</html>
