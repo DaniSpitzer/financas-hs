@@ -6,17 +6,19 @@
     <title>Finanças Hedy</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
-    <script src="https://html2canvas.hertzen.com/dist/html2canvas.min.js"></script>
-   
+    
     <style>
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; padding: 20px; display: flex; justify-content: center; }
-        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 450px; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         h2 { text-align: center; color: #333; }
         label { display: block; margin-top: 10px; font-weight: bold; color: #555; }
         input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ccc; box-sizing: border-box; font-size: 16px; }
         
-        button { background-color: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 15px; cursor: pointer; }
-        .btn-pdf { background-color: #555; margin-top: 10px; }
+        button { background-color: #1a73e8; color: white; border: none; font-weight: bold; margin-top: 15px; cursor: pointer; transition: 0.3s; }
+        button:hover { opacity: 0.8; }
+        .btn-pdf { background-color: #2e7d32; margin-top: 20px; }
+        .btn-edit { background-color: #fbbc04; color: #333; padding: 5px 10px; font-size: 12px; width: auto; margin-top: 0; }
+        .btn-cancelar { background-color: #d93025; margin-top: 5px; }
         
         .total { font-size: 1.5em; font-weight: bold; text-align: center; margin: 20px 0; color: #d93025; }
         
@@ -24,25 +26,21 @@
         th, td { border: 1px solid #eee; padding: 8px; text-align: left; }
         th { background-color: #f8f9fa; }
 
-        #area-report {page-break-inside: avoid;}
-        canvas {page-break-inside: avoid;}
-   
-        #pagina1, #pagina2 {
-        width: 100%;
-        page-break-inside: avoid;
-        }
+        #area-report { padding: 10px; background: white; }
+        canvas { max-height: 220px; margin: 0 auto; }
 
-        #meuGrafico {
-          max-height: 220px;
-        }
+        /* Esconder botões de ação no PDF */
+        .no-pdf { display: table-cell; }
     </style>
 </head>
 <body>
 
 <div class="container">
     <div id="area-registo">
-        <h2>Despesas da Hedy</h2>
+        <h2 id="form-title">Despesas da Hedy</h2>
         
+        <input type="hidden" id="editIndex" value="">
+
         <label>Data</label>
         <input type="date" id="data">
         
@@ -64,59 +62,57 @@
         <input type="text" id="descricao" placeholder="O que comprou?">
         
         <button id="btnAdicionar" onclick="adicionarDespesa()">Adicionar Despesa</button>
+        <button id="btnCancelar" class="btn-cancelar" style="display:none;" onclick="cancelarEdicao()">Cancelar Edição</button>
     </div>
 
     <hr style="margin: 30px 0; border: 0; border-top: 1px solid #eee;">
+    
     <div style="margin-bottom: 20px; text-align: center;">
         <label for="filtroMes">Ver outro mês:</label>
         <input type="month" id="filtroMes" onchange="carregarDadosFiltrados()">
     </div>
 
     <div id="area-report">
+        <div id="pagina1">
+            <h2 style="text-align:center;">Relatório de Despesas</h2>
+            <h3 id="titulo-report" style="text-align:center;"></h3>
+            <div class="total" id="valorTotal">Total: R$ 0.00</div>
+            <canvas id="meuGrafico"></canvas>
+        </div>
 
-    <!-- PAGINA 1 -->
-    <div id="pagina1">
-        <h2 style="text-align:center;">Relatório de Despesas</h2>
-        <h3 id="titulo-report" style="text-align:center;"></h3>
-
-        <div class="total" id="valorTotal">Total: R$ 0.00</div>
-
-        <canvas id="meuGrafico"></canvas>
-    </div>
-    <h3 style="margin-top:25px;">Total por categoria</h3>
-    <table id="tabelaCategorias">
-        <thead>
-            <tr>
-                <th>Categoria</th>
-                <th>Total</th>
-            </tr>
-        </thead>
-        <tbody></tbody>
-    </table>
-
-    <!-- PAGINA 2 -->
-    <div id="pagina2">
-        <h3 style="margin-top:40px;">Lista de Despesas</h3>
-
-        <table id="tabelaDespesas">
+        <h3 style="margin-top:25px;">Total por categoria</h3>
+        <table id="tabelaCategorias">
             <thead>
                 <tr>
-                    <th>Data</th>
                     <th>Categoria</th>
-                    <th>Descrição</th>
-                    <th>Valor</th>
+                    <th>Total</th>
                 </tr>
             </thead>
             <tbody></tbody>
         </table>
-    </div>
 
-</div>
+        <div id="pagina2">
+            <h3 style="margin-top:40px;">Lista de Despesas</h3>
+            <table id="tabelaDespesas">
+                <thead>
+                    <tr>
+                        <th>Data</th>
+                        <th>Categoria</th>
+                        <th>Descrição</th>
+                        <th>Valor</th>
+                        <th class="no-print">Ação</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
 
     <button class="btn-pdf" onclick="gerarPDF()">📥 Baixar Relatório PDF</button>
 </div>
 
 <script>
+// URL do seu Google Apps Script
 const APP_URL = "https://script.google.com/macros/s/AKfycbwu8BrZb72UVrCnBSARtPze90salLnEy7opND4SUWHiDxj75-XItcZEsD6SmQp8T-olHw/exec";
 let todasAsDespesas = [];
 let meuGrafico;
@@ -142,13 +138,14 @@ function carregarDadosFiltrados() {
     });
 
     const meses = ["Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho", "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"];
-    document.getElementById('titulo-report').innerText = "Relatório de " + meses[parseInt(mesAlvo) - 1];
+    document.getElementById('titulo-report').innerText = "Mês de " + meses[parseInt(mesAlvo) - 1];
 
     atualizarInterface(despesasFiltradas);
 }
 
 async function adicionarDespesa() {
     const btn = document.getElementById('btnAdicionar');
+    const editIndex = document.getElementById('editIndex').value;
     const data = document.getElementById('data').value;
     const valor = parseFloat(document.getElementById('valor').value);
     const categoria = document.getElementById('categoria').value;
@@ -156,24 +153,59 @@ async function adicionarDespesa() {
 
     if (!data || isNaN(valor)) return alert("Preencha data e valor!");
 
-    btn.innerText = "Carregando...";
+    btn.innerText = "Processando...";
     btn.disabled = true;
+
+    // Se houver editIndex, enviamos ele para o Script saber qual linha atualizar
+    const payload = { data, valor, categoria, descricao };
+    if (editIndex !== "") payload.index = editIndex;
 
     try {
         await fetch(APP_URL, {
             method: 'POST',
             mode: 'no-cors',
-            body: JSON.stringify({ data, valor, categoria, descricao })
+            body: JSON.stringify(payload)
         });
 
         setTimeout(() => {
-            btn.innerText = "Adicionar Despesa";
-            btn.disabled = false;
-            document.getElementById('valor').value = '';
-            document.getElementById('descricao').value = '';
+            alert(editIndex !== "" ? "Atualizado com sucesso!" : "Adicionado com sucesso!");
+            cancelarEdicao();
             carregarDados();
-        }, 1500);
+        }, 1000);
     } catch (e) { alert("Erro!"); btn.disabled = false; }
+}
+
+function prepararEdicao(idxNoArrayOriginal) {
+    const d = todasAsDespesas[idxNoArrayOriginal];
+    
+    // Preencher campos
+    document.getElementById('data').value = d.data.toString().split('T')[0];
+    document.getElementById('valor').value = d.valor;
+    document.getElementById('categoria').value = d.categoria;
+    document.getElementById('descricao').value = d.descricao;
+    document.getElementById('editIndex').value = idxNoArrayOriginal; // Salvamos o índice original
+
+    // Mudar visual do botão
+    document.getElementById('btnAdicionar').innerText = "Salvar Alteração";
+    document.getElementById('btnAdicionar').style.backgroundColor = "#fbbc04";
+    document.getElementById('btnAdicionar').style.color = "#333";
+    document.getElementById('btnCancelar').style.display = "block";
+    document.getElementById('form-title').innerText = "Editando Despesa";
+    
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+function cancelarEdicao() {
+    document.getElementById('editIndex').value = "";
+    document.getElementById('data').value = "";
+    document.getElementById('valor').value = "";
+    document.getElementById('descricao').value = "";
+    document.getElementById('btnAdicionar').innerText = "Adicionar Despesa";
+    document.getElementById('btnAdicionar').style.backgroundColor = "#1a73e8";
+    document.getElementById('btnAdicionar').style.color = "white";
+    document.getElementById('btnAdicionar').disabled = false;
+    document.getElementById('btnCancelar').style.display = "none";
+    document.getElementById('form-title').innerText = "Despesas da Hedy";
 }
 
 function atualizarInterface(dados) {
@@ -182,21 +214,25 @@ function atualizarInterface(dados) {
     let total = 0;
     let resumoCategorias = {};
 
-    const listaOrdenada = [...dados].sort((a, b) => new Date(b.data) - new Date(a.data));
-
-    listaOrdenada.forEach(d => {
+    dados.forEach((d) => {
         let v = parseFloat(d.valor);
         total += v;
         resumoCategorias[d.categoria] = (resumoCategorias[d.categoria] || 0) + v;
 
         const p = d.data.toString().split('T')[0].split('-');
         const dataFormatada = p[2] + "/" + p[1];
+        
+        // Encontrar o index real no array 'todasAsDespesas' para poder editar corretamente
+        const realIndex = todasAsDespesas.findIndex(item => item === d);
 
         let row = `<tr>
-            <td style="border: 1px solid #eee; padding: 8px;">${dataFormatada}</td>
-            <td style="border: 1px solid #eee; padding: 8px;">${d.categoria}</td>
-            <td style="border: 1px solid #eee; padding: 8px;">${d.descricao || '-'}</td>
-            <td style="border: 1px solid #eee; padding: 8px;">R$ ${v.toFixed(2)}</td>
+            <td>${dataFormatada}</td>
+            <td>${d.categoria}</td>
+            <td>${d.descricao || '-'}</td>
+            <td>R$ ${v.toFixed(2)}</td>
+            <td class="no-print">
+                <button class="btn-edit" onclick="prepararEdicao(${realIndex})">Editar</button>
+            </td>
         </tr>`;
         corpoTabela.innerHTML += row;
     });
@@ -205,16 +241,8 @@ function atualizarInterface(dados) {
     corpoCategorias.innerHTML = '';
 
     Object.keys(resumoCategorias).forEach(cat => {
-    const valor = resumoCategorias[cat];
-
-    const row = `
-        <tr>
-            <td>${cat}</td>
-            <td>R$ ${valor.toFixed(2)}</td>
-        </tr>
-    `;
-
-    corpoCategorias.innerHTML += row;
+        const valor = resumoCategorias[cat];
+        corpoCategorias.innerHTML += `<tr><td>${cat}</td><td>R$ ${valor.toFixed(2)}</td></tr>`;
     });
 
     document.getElementById('valorTotal').innerText = `Total: R$ ${total.toFixed(2)}`;
@@ -241,31 +269,29 @@ function atualizarGrafico(dados) {
 }
 
 function gerarPDF() {
-
-    const btn = document.querySelector('.btn-pdf');
-    btn.innerText = "A gerar imagem...";
-
     const element = document.getElementById('area-report');
+    const opt = {
+        margin: 10,
+        filename: 'Relatorio_Financas_Hedy.pdf',
+        image: { type: 'jpeg', quality: 0.98 },
+        html2canvas: { scale: 2, useCORS: true },
+        jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+        pagebreak: { mode: 'avoid-all' }
+    };
 
-    html2canvas(element, {
-        scale: 2,
-        useCORS: true,
-        backgroundColor: "#ffffff"
-    }).then(canvas => {
+    // Esconder coluna de ações antes de gerar o PDF
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
 
-        const link = document.createElement("a");
-        link.download = "Relatorio_Financas_Hedy.jpeg";
-        link.href = canvas.toDataURL("image/jpeg", 1.0);
-        link.click();
-
-        btn.innerText = "📥 Baixar Relatório PDF";
+    html2pdf().set(opt).from(element).save().then(() => {
+        // Mostrar novamente após gerar
+        document.querySelectorAll('.no-print').forEach(el => el.style.display = 'table-cell');
     });
 }
+
 window.onload = () => {
     const hoje = new Date();
     const mesFormatado = hoje.getFullYear() + "-" + String(hoje.getMonth() + 1).padStart(2, '0');
-    const filtro = document.getElementById('filtroMes');
-    if (filtro) filtro.value = mesFormatado;
+    document.getElementById('filtroMes').value = mesFormatado;
     carregarDados();
 };
 </script>
