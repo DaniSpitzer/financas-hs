@@ -3,23 +3,23 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Hedy - Edição Segura</title>
+    <title>Finanças Hedy - Edição de Campos Específicos</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        :root { --primary: #1a73e8; --warning: #fbbc04; --danger: #d93025; --locked: #e9ecef; }
+        :root { --primary: #1a73e8; --warning: #fbbc04; --danger: #d93025; --locked: #f1f3f4; }
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding: 20px; }
-        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
+        .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
         
         h2 { text-align: center; color: #333; }
         label { display: block; margin-top: 15px; font-weight: bold; font-size: 13px; color: #666; }
         input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
         
-        /* Estilo para campos bloqueados */
-        input:read-only, select:disabled { background-color: var(--locked); cursor: not-allowed; color: #888; }
+        /* Campos bloqueados na edição */
+        input:read-only, select:disabled { background-color: var(--locked); cursor: not-allowed; color: #999; border-color: #eee; }
 
         button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
         #btnSalvar.editando { background-color: var(--warning); color: #333; }
@@ -28,16 +28,15 @@
 
         .total-valor { font-size: 26px; font-weight: bold; color: var(--danger); text-align: center; margin: 15px 0; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { border-bottom: 1px solid #eee; padding: 12px 8px; text-align: left; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
+        th, td { border-bottom: 1px solid #eee; padding: 10px 5px; text-align: left; }
+        th { color: #555; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
         
-        /* Ícone de edição */
         .edit-icon { 
             cursor: pointer; 
-            margin-left: 8px; 
-            font-size: 14px; 
-            opacity: 0.6; 
-            transition: 0.2s; 
+            margin-left: 5px; 
+            font-size: 13px; 
+            opacity: 0.5; 
         }
         .edit-icon:hover { opacity: 1; color: var(--primary); }
 
@@ -51,10 +50,10 @@
         <h2 id="titulo-form">Despesas da Hedy</h2>
         <input type="hidden" id="editIndex" value="">
 
-        <label>Data (Bloqueada na edição)</label>
+        <label>Data</label>
         <input type="date" id="data">
         
-        <label>Categoria (Bloqueada na edição)</label>
+        <label>Categoria</label>
         <select id="categoria">
             <option value="Alimentação">Alimentação</option>
             <option value="Saúde/Farmácia">Saúde/Farmácia</option>
@@ -76,17 +75,18 @@
     </div>
 
     <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
-        <label>Mês do Relatório:</label>
+        <label>Selecionar Mês:</label>
         <input type="month" id="filtroMes" onchange="carregarDados()">
 
         <div class="total-valor" id="displayTotal">R$ 0,00</div>
         <canvas id="previewGrafico"></canvas>
 
-        <h3>Lançamentos <small style="font-weight:normal; font-size: 11px;">(Clique no ✏️ para editar)</small></h3>
+        <h3>Lista de Lançamentos</h3>
         <table id="tabelaPreview">
             <thead>
                 <tr>
                     <th>Data</th>
+                    <th>Categoria</th>
                     <th>Descrição</th>
                     <th>Valor</th>
                 </tr>
@@ -116,28 +116,28 @@ function atualizarTela() {
     const filtrados = todasAsDespesas.filter(d => d.data.startsWith(mesSelecionado));
     
     let total = 0;
-    let categoriasResumo = {};
+    let resumoCat = {};
     const tbody = document.querySelector('#tabelaPreview tbody');
     tbody.innerHTML = '';
 
     filtrados.sort((a,b) => new Date(b.data) - new Date(a.data)).forEach(d => {
         const v = parseFloat(d.valor);
         total += v;
-        categoriasResumo[d.categoria] = (categoriasResumo[d.categoria] || 0) + v;
+        resumoCat[d.categoria] = (resumoCat[d.categoria] || 0) + v;
 
         const dataF = d.data.split('T')[0].split('-').reverse().slice(0,2).join('/');
         const realIdx = todasAsDespesas.findIndex(item => item === d);
 
-        // Adicionamos o ícone de lápis na descrição e no valor
         tbody.innerHTML += `<tr>
-            <td style="color: #888;">${dataF}</td>
+            <td style="color: #999;">${dataF}</td>
+            <td style="color: #999;">${d.categoria}</td>
             <td>${d.descricao || '-'} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
             <td>R$ ${v.toFixed(2)} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
         </tr>`;
     });
 
     document.getElementById('displayTotal').innerText = `R$ ${total.toFixed(2)}`;
-    renderizarGrafico(categoriasResumo);
+    renderizarGrafico(resumoCat);
 }
 
 function renderizarGrafico(dados) {
@@ -147,9 +147,9 @@ function renderizarGrafico(dados) {
         type: 'doughnut',
         data: {
             labels: Object.keys(dados),
-            datasets: [{ data: Object.values(dados), backgroundColor: ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#9C27B0'] }]
+            datasets: [{ data: Object.values(dados), backgroundColor: ['#4285F4', '#34A853', '#FBBC05', '#EA4335', '#9C27B0', '#00BCD4', '#FF9800'] }]
         },
-        options: { responsive: true, maintainAspectRatio: false, animation: false }
+        options: { responsive: true, maintainAspectRatio: false, animation: false, plugins: { legend: { position: 'bottom' } } }
     });
 }
 
@@ -161,50 +161,47 @@ async function adicionarDespesa() {
         categoria: document.getElementById('categoria').value,
         descricao: document.getElementById('descricao').value
     };
+    
     if (idx !== "") payload.index = idx;
 
-    document.getElementById('btnSalvar').innerText = "Processando...";
-    document.getElementById('btnSalvar').disabled = true;
+    const btn = document.getElementById('btnSalvar');
+    btn.innerText = "A guardar...";
+    btn.disabled = true;
 
-    await fetch(APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-    
-    cancelarEdicao();
-    carregarDados();
+    try {
+        await fetch(APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+        cancelarEdicao();
+        carregarDados();
+    } catch (e) { alert("Erro ao ligar ao servidor!"); btn.disabled = false; }
 }
 
 function prepararEdicao(idx) {
     const d = todasAsDespesas[idx];
     
-    // Preenche os campos
     document.getElementById('data').value = d.data.split('T')[0];
     document.getElementById('valor').value = d.valor;
     document.getElementById('categoria').value = d.categoria;
     document.getElementById('descricao').value = d.descricao;
     document.getElementById('editIndex').value = idx;
     
-    // BLOQUEIA os campos que não devem ser alterados
+    // TRAVAR campos sensíveis
     document.getElementById('data').readOnly = true;
     document.getElementById('categoria').disabled = true;
     
-    // Muda visual do formulário
-    document.getElementById('titulo-form').innerText = "✏️ Alterando Valor/Desc.";
+    document.getElementById('titulo-form').innerText = "✏️ Editar Valor ou Descrição";
     const btn = document.getElementById('btnSalvar');
     btn.innerText = "Salvar Alteração";
     btn.classList.add('editando');
     document.getElementById('btnCancelar').style.display = "block";
     
-    // Rola para o topo para o usuário ver o formulário
     window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function cancelarEdicao() {
     document.getElementById('editIndex').value = "";
-    
-    // DESBLOQUEIA os campos para novos cadastros
     document.getElementById('data').readOnly = false;
     document.getElementById('categoria').disabled = false;
     
-    // Reseta visual
     const btn = document.getElementById('btnSalvar');
     btn.innerText = "Adicionar Despesa";
     btn.disabled = false;
@@ -212,7 +209,6 @@ function cancelarEdicao() {
     document.getElementById('btnCancelar').style.display = "none";
     document.getElementById('titulo-form').innerText = "Despesas da Hedy";
     
-    // Limpa campos (exceto o filtro de mês)
     document.getElementById('valor').value = "";
     document.getElementById('descricao').value = "";
     document.getElementById('data').value = "";
@@ -225,12 +221,13 @@ async function gerarPDF() {
     
     doc.setFontSize(18);
     doc.text("Relatório de Despesas - Hedy", 14, 20);
-    doc.setFontSize(12);
-    doc.text(`Mês de Referência: ${mesRef}`, 14, 28);
+    doc.setFontSize(11);
+    doc.setTextColor(100);
+    doc.text(`Referência: ${mesRef}`, 14, 27);
 
     const canvas = document.getElementById('previewGrafico');
     const imgData = canvas.toDataURL('image/png');
-    doc.addImage(imgData, 'PNG', 50, 35, 100, 60);
+    doc.addImage(imgData, 'PNG', 60, 35, 90, 50);
 
     const filtrados = todasAsDespesas.filter(d => d.data.startsWith(mesRef));
     let resumoCat = {};
@@ -241,17 +238,21 @@ async function gerarPDF() {
         totalGeral += parseFloat(d.valor);
     });
 
+    // Tabela de Resumo
     doc.autoTable({
-        startY: 100,
-        head: [['Categoria', 'Total (R$)']],
+        startY: 95,
+        head: [['Categoria', 'Subtotal (R$)']],
         body: Object.entries(resumoCat).map(([cat, val]) => [cat, val.toFixed(2)]),
         theme: 'striped',
-        headStyles: { fillStyle: [26, 115, 232] }
+        headStyles: { fillStyle: [26, 115, 232] },
+        styles: { fontSize: 10 }
     });
 
-    doc.setFontSize(14);
-    doc.text(`TOTAL GERAL: R$ ${totalGeral.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
+    doc.setFontSize(12);
+    doc.setTextColor(217, 48, 37); // Cor vermelha para o total
+    doc.text(`VALOR TOTAL: R$ ${totalGeral.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
 
+    // Tabela Detalhada
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 20,
         head: [['Data', 'Categoria', 'Descrição', 'Valor']],
@@ -260,10 +261,11 @@ async function gerarPDF() {
             d.categoria,
             d.descricao || '-',
             `R$ ${parseFloat(d.valor).toFixed(2)}`
-        ])
+        ]),
+        styles: { fontSize: 9 }
     });
 
-    doc.save(`Relatorio_${mesRef}.pdf`);
+    doc.save(`Relatorio_Hedy_${mesRef}.pdf`);
 }
 
 window.onload = () => {
