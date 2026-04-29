@@ -3,42 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Hedy - Edição de Campos Específicos</title>
+    <title>Finanças Hedy - Controle Simples</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        :root { --primary: #1a73e8; --warning: #fbbc04; --danger: #d93025; --locked: #f1f3f4; }
+        :root { --primary: #1a73e8; --danger: #d93025; }
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding: 20px; }
         .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 600px; }
         
-        h2 { text-align: center; color: #333; }
+        h2 { text-align: center; color: #333; margin-bottom: 20px; }
         label { display: block; margin-top: 15px; font-weight: bold; font-size: 13px; color: #666; }
         input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
         
-        /* Campos bloqueados na edição */
-        input:read-only, select:disabled { background-color: var(--locked); cursor: not-allowed; color: #999; border-color: #eee; }
-
-        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        #btnSalvar.editando { background-color: var(--warning); color: #333; }
-        .btn-cancelar { background-color: #666; margin-top: 5px; }
+        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:disabled { background-color: #ccc; }
+        
         .btn-pdf { background-color: #2e7d32; margin-top: 30px; font-size: 18px; }
 
-        .total-valor { font-size: 26px; font-weight: bold; color: var(--danger); text-align: center; margin: 15px 0; }
+        .total-valor { font-size: 28px; font-weight: bold; color: var(--danger); text-align: center; margin: 15px 0; }
         
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; }
-        th, td { border-bottom: 1px solid #eee; padding: 10px 5px; text-align: left; }
-        th { color: #555; text-transform: uppercase; font-size: 11px; letter-spacing: 0.5px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px 8px; text-align: left; }
+        th { color: #555; text-transform: uppercase; font-size: 11px; }
         
-        .edit-icon { 
+        .delete-icon { 
             cursor: pointer; 
-            margin-left: 5px; 
-            font-size: 13px; 
-            opacity: 0.5; 
+            color: var(--danger); 
+            font-size: 16px; 
+            padding: 5px;
+            border-radius: 5px;
+            transition: 0.2s;
         }
-        .edit-icon:hover { opacity: 1; color: var(--primary); }
+        .delete-icon:hover { background-color: #ffebee; }
 
         #previewGrafico { max-height: 200px; margin-bottom: 20px; }
     </style>
@@ -47,9 +46,7 @@
 
 <div class="container">
     <div id="formulario">
-        <h2 id="titulo-form">Despesas da Hedy</h2>
-        <input type="hidden" id="editIndex" value="">
-
+        <h2>Registar Despesa</h2>
         <label>Data</label>
         <input type="date" id="data">
         
@@ -70,18 +67,17 @@
         <label>Descrição</label>
         <input type="text" id="descricao" placeholder="O que comprou?">
         
-        <button id="btnSalvar" onclick="adicionarDespesa()">Adicionar Despesa</button>
-        <button id="btnCancelar" class="btn-cancelar" style="display:none;" onclick="cancelarEdicao()">Cancelar Edição</button>
+        <button id="btnSalvar" onclick="adicionarDespesa()">Adicionar à Lista</button>
     </div>
 
     <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
-        <label>Selecionar Mês:</label>
+        <label>Mês do Relatório:</label>
         <input type="month" id="filtroMes" onchange="carregarDados()">
 
         <div class="total-valor" id="displayTotal">R$ 0,00</div>
         <canvas id="previewGrafico"></canvas>
 
-        <h3>Lista de Lançamentos</h3>
+        <h3>Lista de Gastos</h3>
         <table id="tabelaPreview">
             <thead>
                 <tr>
@@ -89,6 +85,7 @@
                     <th>Categoria</th>
                     <th>Descrição</th>
                     <th>Valor</th>
+                    <th style="text-align:center;">Apagar</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -108,7 +105,7 @@ async function carregarDados() {
         const response = await fetch(APP_URL);
         todasAsDespesas = await response.json();
         atualizarTela();
-    } catch (e) { console.error("Erro:", e); }
+    } catch (e) { console.error("Erro ao carregar dados:", e); }
 }
 
 function atualizarTela() {
@@ -120,24 +117,81 @@ function atualizarTela() {
     const tbody = document.querySelector('#tabelaPreview tbody');
     tbody.innerHTML = '';
 
+    // Ordenar por data (mais recente em cima)
     filtrados.sort((a,b) => new Date(b.data) - new Date(a.data)).forEach(d => {
         const v = parseFloat(d.valor);
         total += v;
         resumoCat[d.categoria] = (resumoCat[d.categoria] || 0) + v;
 
         const dataF = d.data.split('T')[0].split('-').reverse().slice(0,2).join('/');
+        
+        // Procurar o índice real na planilha
         const realIdx = todasAsDespesas.findIndex(item => item === d);
 
         tbody.innerHTML += `<tr>
-            <td style="color: #999;">${dataF}</td>
-            <td style="color: #999;">${d.categoria}</td>
-            <td>${d.descricao || '-'} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
-            <td>R$ ${v.toFixed(2)} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
+            <td>${dataF}</td>
+            <td>${d.categoria}</td>
+            <td>${d.descricao || '-'}</td>
+            <td>R$ ${v.toFixed(2)}</td>
+            <td style="text-align:center;">
+                <span class="delete-icon" onclick="deletarDespesa(${realIdx})">🗑️</span>
+            </td>
         </tr>`;
     });
 
     document.getElementById('displayTotal').innerText = `R$ ${total.toFixed(2)}`;
     renderizarGrafico(resumoCat);
+}
+
+async function adicionarDespesa() {
+    const payload = {
+        data: document.getElementById('data').value,
+        valor: document.getElementById('valor').value,
+        categoria: document.getElementById('categoria').value,
+        descricao: document.getElementById('descricao').value
+    };
+
+    if(!payload.data || !payload.valor) return alert("Preencha a data e o valor!");
+
+    const btn = document.getElementById('btnSalvar');
+    btn.innerText = "A enviar...";
+    btn.disabled = true;
+
+    await fetch(APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
+    
+    document.getElementById('valor').value = "";
+    document.getElementById('descricao').value = "";
+    btn.innerText = "Adicionar à Lista";
+    btn.disabled = false;
+    carregarDados();
+}
+
+async function deletarDespesa(idx) {
+    if(!confirm("Tem certeza que deseja apagar este lançamento?")) return;
+
+    // Mostra um aviso temporário
+    const btnPdf = document.querySelector('.btn-pdf');
+    btnPdf.innerText = "A apagar...";
+    btnPdf.disabled = true;
+
+    try {
+        await fetch(APP_URL, { 
+            method: 'POST', 
+            mode: 'no-cors', 
+            body: JSON.stringify({ action: "DELETE", index: idx }) 
+        });
+        
+        // Pequena pausa para o Google processar
+        setTimeout(() => {
+            btnPdf.innerText = "📥 Baixar Relatório PDF";
+            btnPdf.disabled = false;
+            carregarDados();
+        }, 500);
+
+    } catch (e) { 
+        alert("Erro ao apagar!"); 
+        btnPdf.disabled = false;
+    }
 }
 
 function renderizarGrafico(dados) {
@@ -153,67 +207,6 @@ function renderizarGrafico(dados) {
     });
 }
 
-async function adicionarDespesa() {
-    const idx = document.getElementById('editIndex').value;
-    const payload = {
-        data: document.getElementById('data').value,
-        valor: document.getElementById('valor').value,
-        categoria: document.getElementById('categoria').value,
-        descricao: document.getElementById('descricao').value
-    };
-    
-    if (idx !== "") payload.index = idx;
-
-    const btn = document.getElementById('btnSalvar');
-    btn.innerText = "A guardar...";
-    btn.disabled = true;
-
-    try {
-        await fetch(APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
-        cancelarEdicao();
-        carregarDados();
-    } catch (e) { alert("Erro ao ligar ao servidor!"); btn.disabled = false; }
-}
-
-function prepararEdicao(idx) {
-    const d = todasAsDespesas[idx];
-    
-    document.getElementById('data').value = d.data.split('T')[0];
-    document.getElementById('valor').value = d.valor;
-    document.getElementById('categoria').value = d.categoria;
-    document.getElementById('descricao').value = d.descricao;
-    document.getElementById('editIndex').value = idx;
-    
-    // TRAVAR campos sensíveis
-    document.getElementById('data').readOnly = true;
-    document.getElementById('categoria').disabled = true;
-    
-    document.getElementById('titulo-form').innerText = "✏️ Editar Valor ou Descrição";
-    const btn = document.getElementById('btnSalvar');
-    btn.innerText = "Salvar Alteração";
-    btn.classList.add('editando');
-    document.getElementById('btnCancelar').style.display = "block";
-    
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-}
-
-function cancelarEdicao() {
-    document.getElementById('editIndex').value = "";
-    document.getElementById('data').readOnly = false;
-    document.getElementById('categoria').disabled = false;
-    
-    const btn = document.getElementById('btnSalvar');
-    btn.innerText = "Adicionar Despesa";
-    btn.disabled = false;
-    btn.classList.remove('editando');
-    document.getElementById('btnCancelar').style.display = "none";
-    document.getElementById('titulo-form').innerText = "Despesas da Hedy";
-    
-    document.getElementById('valor').value = "";
-    document.getElementById('descricao').value = "";
-    document.getElementById('data').value = "";
-}
-
 async function gerarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
@@ -222,7 +215,6 @@ async function gerarPDF() {
     doc.setFontSize(18);
     doc.text("Relatório de Despesas - Hedy", 14, 20);
     doc.setFontSize(11);
-    doc.setTextColor(100);
     doc.text(`Referência: ${mesRef}`, 14, 27);
 
     const canvas = document.getElementById('previewGrafico');
@@ -238,21 +230,17 @@ async function gerarPDF() {
         totalGeral += parseFloat(d.valor);
     });
 
-    // Tabela de Resumo
     doc.autoTable({
         startY: 95,
         head: [['Categoria', 'Subtotal (R$)']],
         body: Object.entries(resumoCat).map(([cat, val]) => [cat, val.toFixed(2)]),
         theme: 'striped',
-        headStyles: { fillStyle: [26, 115, 232] },
-        styles: { fontSize: 10 }
+        headStyles: { fillStyle: [26, 115, 232] }
     });
 
-    doc.setFontSize(12);
-    doc.setTextColor(217, 48, 37); // Cor vermelha para o total
+    doc.setFontSize(13);
     doc.text(`VALOR TOTAL: R$ ${totalGeral.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
 
-    // Tabela Detalhada
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 20,
         head: [['Data', 'Categoria', 'Descrição', 'Valor']],
@@ -261,8 +249,7 @@ async function gerarPDF() {
             d.categoria,
             d.descricao || '-',
             `R$ ${parseFloat(d.valor).toFixed(2)}`
-        ]),
-        styles: { fontSize: 9 }
+        ])
     });
 
     doc.save(`Relatorio_Hedy_${mesRef}.pdf`);
