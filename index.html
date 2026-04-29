@@ -3,34 +3,44 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Finanças Hedy - Exportação Pro</title>
+    <title>Finanças Hedy - Edição Segura</title>
     
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.25/jspdf.plugin.autotable.min.js"></script>
     
     <style>
-        :root { --primary: #1a73e8; --warning: #fbbc04; --danger: #d93025; }
+        :root { --primary: #1a73e8; --warning: #fbbc04; --danger: #d93025; --locked: #e9ecef; }
         body { font-family: 'Segoe UI', sans-serif; background-color: #f4f4f9; display: flex; justify-content: center; padding: 20px; }
         .container { background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); width: 100%; max-width: 500px; }
         
         h2 { text-align: center; color: #333; }
-        label { display: block; margin-top: 15px; font-weight: bold; font-size: 14px; color: #555; }
+        label { display: block; margin-top: 15px; font-weight: bold; font-size: 13px; color: #666; }
         input, select, button { width: 100%; padding: 12px; margin-top: 5px; border-radius: 8px; border: 1px solid #ddd; box-sizing: border-box; font-size: 16px; }
         
-        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
-        button:hover { opacity: 0.9; }
-        
-        .btn-edit { background-color: var(--warning); color: #333; padding: 5px 10px; font-size: 12px; width: auto; margin: 0; }
-        .btn-pdf { background-color: #2e7d32; margin-top: 30px; font-size: 18px; }
-        .btn-cancelar { background-color: #666; margin-top: 5px; }
+        /* Estilo para campos bloqueados */
+        input:read-only, select:disabled { background-color: var(--locked); cursor: not-allowed; color: #888; }
 
-        .resumo-tela { margin-top: 30px; padding: 15px; border-top: 2px solid #eee; }
-        .total-valor { font-size: 24px; font-weight: bold; color: var(--danger); text-align: center; margin: 10px 0; }
+        button { background-color: var(--primary); color: white; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; margin-top: 10px; }
+        #btnSalvar.editando { background-color: var(--warning); color: #333; }
+        .btn-cancelar { background-color: #666; margin-top: 5px; }
+        .btn-pdf { background-color: #2e7d32; margin-top: 30px; font-size: 18px; }
+
+        .total-valor { font-size: 26px; font-weight: bold; color: var(--danger); text-align: center; margin: 15px 0; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 13px; }
-        th, td { border-bottom: 1px solid #eee; padding: 10px; text-align: left; }
+        th, td { border-bottom: 1px solid #eee; padding: 12px 8px; text-align: left; }
         
+        /* Ícone de edição */
+        .edit-icon { 
+            cursor: pointer; 
+            margin-left: 8px; 
+            font-size: 14px; 
+            opacity: 0.6; 
+            transition: 0.2s; 
+        }
+        .edit-icon:hover { opacity: 1; color: var(--primary); }
+
         #previewGrafico { max-height: 200px; margin-bottom: 20px; }
     </style>
 </head>
@@ -41,13 +51,10 @@
         <h2 id="titulo-form">Despesas da Hedy</h2>
         <input type="hidden" id="editIndex" value="">
 
-        <label>Data</label>
+        <label>Data (Bloqueada na edição)</label>
         <input type="date" id="data">
         
-        <label>Valor (R$)</label>
-        <input type="number" id="valor" step="0.01" placeholder="0.00">
-        
-        <label>Categoria</label>
+        <label>Categoria (Bloqueada na edição)</label>
         <select id="categoria">
             <option value="Alimentação">Alimentação</option>
             <option value="Saúde/Farmácia">Saúde/Farmácia</option>
@@ -58,6 +65,9 @@
             <option value="Outros">Outros</option>
         </select>
         
+        <label>Valor (R$)</label>
+        <input type="number" id="valor" step="0.01" placeholder="0.00">
+        
         <label>Descrição</label>
         <input type="text" id="descricao" placeholder="O que comprou?">
         
@@ -65,21 +75,20 @@
         <button id="btnCancelar" class="btn-cancelar" style="display:none;" onclick="cancelarEdicao()">Cancelar Edição</button>
     </div>
 
-    <div class="resumo-tela">
-        <label>Filtrar Mês do Relatório:</label>
+    <div style="margin-top: 30px; border-top: 2px solid #eee; padding-top: 20px;">
+        <label>Mês do Relatório:</label>
         <input type="month" id="filtroMes" onchange="carregarDados()">
 
         <div class="total-valor" id="displayTotal">R$ 0,00</div>
         <canvas id="previewGrafico"></canvas>
 
-        <h3>Últimos Lançamentos</h3>
+        <h3>Lançamentos <small style="font-weight:normal; font-size: 11px;">(Clique no ✏️ para editar)</small></h3>
         <table id="tabelaPreview">
             <thead>
                 <tr>
                     <th>Data</th>
-                    <th>Desc.</th>
+                    <th>Descrição</th>
                     <th>Valor</th>
-                    <th>Ação</th>
                 </tr>
             </thead>
             <tbody></tbody>
@@ -119,11 +128,11 @@ function atualizarTela() {
         const dataF = d.data.split('T')[0].split('-').reverse().slice(0,2).join('/');
         const realIdx = todasAsDespesas.findIndex(item => item === d);
 
+        // Adicionamos o ícone de lápis na descrição e no valor
         tbody.innerHTML += `<tr>
-            <td>${dataF}</td>
-            <td>${d.descricao || '-'}</td>
-            <td>R$ ${v.toFixed(2)}</td>
-            <td><button class="btn-edit" onclick="prepararEdicao(${realIdx})">Editar</button></td>
+            <td style="color: #888;">${dataF}</td>
+            <td>${d.descricao || '-'} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
+            <td>R$ ${v.toFixed(2)} <span class="edit-icon" onclick="prepararEdicao(${realIdx})">✏️</span></td>
         </tr>`;
     });
 
@@ -155,6 +164,8 @@ async function adicionarDespesa() {
     if (idx !== "") payload.index = idx;
 
     document.getElementById('btnSalvar').innerText = "Processando...";
+    document.getElementById('btnSalvar').disabled = true;
+
     await fetch(APP_URL, { method: 'POST', mode: 'no-cors', body: JSON.stringify(payload) });
     
     cancelarEdicao();
@@ -163,44 +174,64 @@ async function adicionarDespesa() {
 
 function prepararEdicao(idx) {
     const d = todasAsDespesas[idx];
+    
+    // Preenche os campos
     document.getElementById('data').value = d.data.split('T')[0];
     document.getElementById('valor').value = d.valor;
     document.getElementById('categoria').value = d.categoria;
     document.getElementById('descricao').value = d.descricao;
     document.getElementById('editIndex').value = idx;
     
-    document.getElementById('titulo-form').innerText = "Editando Registro";
-    document.getElementById('btnSalvar').innerText = "Salvar Alteração";
+    // BLOQUEIA os campos que não devem ser alterados
+    document.getElementById('data').readOnly = true;
+    document.getElementById('categoria').disabled = true;
+    
+    // Muda visual do formulário
+    document.getElementById('titulo-form').innerText = "✏️ Alterando Valor/Desc.";
+    const btn = document.getElementById('btnSalvar');
+    btn.innerText = "Salvar Alteração";
+    btn.classList.add('editando');
     document.getElementById('btnCancelar').style.display = "block";
-    window.scrollTo(0,0);
+    
+    // Rola para o topo para o usuário ver o formulário
+    window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
 function cancelarEdicao() {
     document.getElementById('editIndex').value = "";
-    document.getElementById('btnSalvar').innerText = "Adicionar Despesa";
+    
+    // DESBLOQUEIA os campos para novos cadastros
+    document.getElementById('data').readOnly = false;
+    document.getElementById('categoria').disabled = false;
+    
+    // Reseta visual
+    const btn = document.getElementById('btnSalvar');
+    btn.innerText = "Adicionar Despesa";
+    btn.disabled = false;
+    btn.classList.remove('editando');
     document.getElementById('btnCancelar').style.display = "none";
     document.getElementById('titulo-form').innerText = "Despesas da Hedy";
-    document.querySelectorAll('input').forEach(i => i.type !== 'month' ? i.value = "" : null);
+    
+    // Limpa campos (exceto o filtro de mês)
+    document.getElementById('valor').value = "";
+    document.getElementById('descricao').value = "";
+    document.getElementById('data').value = "";
 }
 
-// O NOVO COMANDO DE PDF (SEM PÁGINAS EM BRANCO)
 async function gerarPDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     const mesRef = document.getElementById('filtroMes').value;
     
-    // 1. Título
     doc.setFontSize(18);
     doc.text("Relatório de Despesas - Hedy", 14, 20);
     doc.setFontSize(12);
-    doc.text(`Referência: ${mesRef}`, 14, 28);
+    doc.text(`Mês de Referência: ${mesRef}`, 14, 28);
 
-    // 2. Gráfico (Transforma o Canvas em imagem para o PDF)
     const canvas = document.getElementById('previewGrafico');
     const imgData = canvas.toDataURL('image/png');
     doc.addImage(imgData, 'PNG', 50, 35, 100, 60);
 
-    // 3. Resumo por Categoria (Tabela Automática)
     const filtrados = todasAsDespesas.filter(d => d.data.startsWith(mesRef));
     let resumoCat = {};
     let totalGeral = 0;
@@ -218,11 +249,9 @@ async function gerarPDF() {
         headStyles: { fillStyle: [26, 115, 232] }
     });
 
-    // 4. Total Geral em Destaque
     doc.setFontSize(14);
     doc.text(`TOTAL GERAL: R$ ${totalGeral.toFixed(2)}`, 14, doc.lastAutoTable.finalY + 10);
 
-    // 5. Lista Detalhada (Isso pula de página sozinho se for longo!)
     doc.autoTable({
         startY: doc.lastAutoTable.finalY + 20,
         head: [['Data', 'Categoria', 'Descrição', 'Valor']],
@@ -231,8 +260,7 @@ async function gerarPDF() {
             d.categoria,
             d.descricao || '-',
             `R$ ${parseFloat(d.valor).toFixed(2)}`
-        ]),
-        margin: { top: 30 }
+        ])
     });
 
     doc.save(`Relatorio_${mesRef}.pdf`);
